@@ -126,7 +126,7 @@ if prompt := st.chat_input("Mesajınızı yazın..."):
         with st.spinner("İşleniyor..."):
             
             clean_p = prompt.lower().replace(" ", "")
-            kimlik_kelimeleri = ["kimyaptı", "kimtasarladı", "senikim", "yapımcın", "kimingeliştirdi"]
+            kimlik_kelimeleri = ["kimyaptı", "kimtasarladı", "senikim", "yapımcın", "kimingeliştirdi" "kim tarafından yapıldın",]
             selam_kelimeleri = ["nasılsın", "merhaba", "selam", "naber"]
 
             if any(k in clean_p for k in kimlik_kelimeleri):
