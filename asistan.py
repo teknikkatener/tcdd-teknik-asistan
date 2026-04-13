@@ -24,7 +24,6 @@ st.markdown("""
     [data-testid="stSidebar"] { background-color: #ffffff; border-right: 1px solid #eee; }
     .tcdd-header { color: #d32f2f; text-align: center; font-weight: 800; font-size: 32px; margin-bottom: 20px; }
     
-    /* Sol Menü Butonları */
     div.stSidebar div.stButton > button {
         background-color: transparent !important;
         border: none !important;
@@ -36,7 +35,6 @@ st.markdown("""
     }
     div.stSidebar div.stButton > button:hover { color: #b71c1c !important; text-decoration: underline !important; }
 
-    /* Görsel Yükleme Butonu (+) */
     .stFileUploader {
         border: 2px dashed #ddd !important;
         border-radius: 10px !important;
@@ -66,7 +64,7 @@ if "active_chat_id" not in st.session_state:
 # --- 4. ANALİZ MOTORU ---
 def teknik_motor(prompt, pdf_docs, img_file=None):
     system_instr = """Sen TCDD Teknik Uzmanısın. 
-    ÖNEMLİ KURAL: Eğer birisi 'Seni kim yaptı?', 'Yapımcın kim?' gibi sorular sorarsa; 
+    ÖNEMLİ KURAL: Eğer birisi 'Seni kim yaptı?', 'Yapımcın kim?', 'Seni kim tasarladı?' gibi sorular sorursa; 
     KESİN BİR DİLLE 'Beni Semi Özcan tasarlayıp geliştirdi' cevabını ver. 
     Diğer konularda sadece teknik arıza desteği ver. PDF ve internet (Google Search) kullan."""
 
@@ -133,8 +131,20 @@ for m in st.session_state.chats[active_id]["messages"]:
         st.markdown(m["content"])
 
 # --- 7. GİRİŞ VE ANALİZ ---
-img_file = st.file_uploader("", type=["jpg", "jpeg", "png"], key="arıza_foto")
+img_file = st.file_uploader("", type=["jpg", "jpeg", "png"], key="foto_yukle")
 
 if prompt := st.chat_input("Teknik sorunuzu yazın..."):
     if st.session_state.chats[active_id]["title"] == "Yeni Arıza Kaydı":
-        st.session_state.chats[active
+        st.session_state.chats[active_id]["title"] = " ".join(prompt.split()[:5]) + ".."
+
+    st.session_state.chats[active_id]["messages"].append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    with st.chat_message("assistant"):
+        with st.spinner("Analiz ediliyor..."):
+            pdf_data = belgeleri_getir()
+            yanit = teknik_motor(prompt, pdf_data, img_file)
+            st.markdown(yanit)
+            st.session_state.chats[active_id]["messages"].append({"role": "assistant", "content": yanit})
+            st.rerun()
