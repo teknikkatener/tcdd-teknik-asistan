@@ -14,7 +14,7 @@ except Exception:
 MODEL_ADI = "models/gemini-2.5-flash-lite" 
 URL = f"https://generativelanguage.googleapis.com/v1beta/{MODEL_ADI}:generateContent?key={API_KEY}"
 
-st.set_page_config(page_title="TCDD Teknik", page_icon="🚆", layout="wide")
+st.set_page_config(page_title="TCDD TEKNİK", page_icon="🚆", layout="wide")
 
 # --- 2. TASARIM VE SOHBET YÖNETİMİ ---
 if "all_chats" not in st.session_state:
