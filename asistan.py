@@ -1,96 +1,221 @@
 import streamlit as st
-import google.generativeai as genai
+
+import requests
+
+import base64
+
 import os
-import uuid
 
-# --- 1. AYARLAR (KENDİ KENDİNİ TEST EDEN MOTOR) ---
-# Buraya API anahtarınızı tırnak içine yazın
+import time
+
+
+
+# --- 1. AYARLAR ---
+
 API_KEY = "AIzaSyDiPz8xBichTdC5wz30BQyv6PeFFRrTIH0"
-genai.configure(api_key=API_KEY)
 
-# Bulutun en sevdiği, en hatasız model ismi
-MODEL_ADI = "gemini-2.0-flash-exp" 
+MODEL_ADI = "models/gemini-2.5-flash-lite" 
+
+URL = f"https://generativelanguage.googleapis.com/v1beta/{MODEL_ADI}:generateContent?key={API_KEY}"
+
+
 
 st.set_page_config(page_title="TCDD Teknik", page_icon="🚆", layout="wide")
 
-# --- 2. TASARIM (SİZİN İSTEDİĞİNİZ SADE STİL) ---
+
+
+# --- 2. TASARIM VE OTURUM YÖNETİMİ ---
+
+if "all_chats" not in st.session_state:
+
+    st.session_state.all_chats = {} # Tüm geçmiş sohbetler
+
+if "current_chat_id" not in st.session_state:
+
+    st.session_state.current_chat_id = "Sohbet 1"
+
+    st.session_state.all_chats["Sohbet 1"] = []
+
+
+
+# CSS
+
 st.markdown("""
+
     <style>
-    [data-testid="stChatMessageContent"] { background-color: transparent !important; border: none !important; padding: 0 !important; }
-    .stChatMessage { border: none !important; background-color: transparent !important; padding: 10px 0px !important; border-bottom: 1px solid #f0f0f0 !important; }
-    .tcdd-header { color: #d32f2f; text-align: center; font-weight: 800; font-size: 32px; margin-bottom: 20px; }
-    div.stButton > button { background-color: transparent !important; border: none !important; color: #d32f2f !important; font-weight: 600 !important; }
+
+    .tcdd-title { color: #d32f2f; font-size: 40px; font-weight: 800; text-align: center; margin-bottom: 20px; }
+
+    [data-testid="stSidebar"] { background-color: #f1f3f5; border-right: 1px solid #ddd; }
+
+    .stChatInputContainer { width: 85% !important; margin: 0 auto !important; }
+
     </style>
+
     """, unsafe_allow_html=True)
 
-# --- 3. BAĞLANTI TESTİ (SİSTEM AÇILIRKEN KONTROL EDER) ---
-def baglanti_test_et():
-    try:
-        test_model = genai.GenerativeModel(MODEL_ADI)
-        response = test_model.generate_content("test", generation_config={"max_output_tokens": 5})
-        return True, "Bağlantı Başarılı"
-    except Exception as e:
-        return False, str(e)
 
-# --- 4. OTURUM ---
-if "chats" not in st.session_state:
-    st.session_state.chats = {str(uuid.uuid4()): {"title": "Yeni Arıza Kaydı", "messages": []}}
-    st.session_state.active_chat_id = list(st.session_state.chats.keys())[0]
 
-# --- 5. ANALİZ MOTORU ---
-def teknik_motor(prompt, pdf_files, img_file=None):
-    try:
-        model = genai.GenerativeModel(
-            model_name=MODEL_ADI,
-            system_instruction="Sen TCDD Teknik Uzmanısın. Seni Semi Özcan tasarladı. Sadece teknik cevap ver."
-        )
-        
-        parts = [prompt]
-        # PDF'leri işle
-        for pdf in pdf_files:
-            with open(pdf, "rb") as f:
-                parts.append({"mime_type": "application/pdf", "data": f.read()})
-        
-        # Görseli işle
-        if img_file:
-            parts.append({"mime_type": "image/jpeg", "data": img_file.getvalue()})
+# --- 3. BİLGİ BANKASI ---
 
-        # Yanıt al (Google Search dahil)
-        response = model.generate_content(parts, tools=[{"google_search_retrieval": {}}])
-        return response.text
-    except Exception as e:
-        return f"❌ Teknik Hata: {str(e)}"
+@st.cache_data
 
-# --- 6. ANA EKRAN ---
-st.markdown("<div class='tcdd-header'>TCDD Teknik</div>", unsafe_allow_html=True)
+def load_docs():
 
-# Bağlantı Durumu Göstergesi
-is_ok, msg = baglanti_test_et()
-if not is_ok:
-    st.error(f"🔌 Bağlantı Kurulamadı! Detay: {msg}")
-else:
-    st.success("✅ Sistem Aktif: Google ile bağlantı kuruldu.")
+    docs = []
 
-active_id = st.session_state.active_chat_id
-for m in st.session_state.chats[active_id]["messages"]:
-    with st.chat_message(m["role"]):
-        st.markdown(m["content"])
+    folder = "bilgi_bankasi"
 
-# --- 7. GİRİŞ ---
-img_file = st.file_uploader("", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+    if os.path.exists(folder):
+
+        for f in os.listdir(folder):
+
+            if f.lower().endswith(".pdf"):
+
+                with open(os.path.join(folder, f), "rb") as file:
+
+                    docs.append({"mime_type": "application/pdf", "data": base64.b64encode(file.read()).decode()})
+
+    return docs
+
+
+
+# --- 4. SOL PANEL (GEÇMİŞ VE YENİ SOHBET) ---
+
+with st.sidebar:
+
+    st.markdown("### 🚆 TCDD TEKNİK")
+
+    
+
+    if st.button("➕ Yeni Sohbet", use_container_width=True):
+
+        new_id = f"Sohbet {len(st.session_state.all_chats) + 1}"
+
+        st.session_state.all_chats[new_id] = []
+
+        st.session_state.current_chat_id = new_id
+
+        st.rerun()
+
+
+
+    st.markdown("---")
+
+    st.markdown("📂 **Geçmiş Sohbetler**")
+
+    for chat_id in list(st.session_state.all_chats.keys()):
+
+        if st.button(f"💬 {chat_id}", key=f"btn_{chat_id}", use_container_width=True):
+
+            st.session_state.current_chat_id = chat_id
+
+            st.rerun()
+
+
+
+    st.markdown("---")
+
+    st.markdown("📸 **Görsel Analiz**")
+
+    img_file = st.file_uploader("Fotoğraf Yükle", type=["jpg", "png", "jpeg"])
+
+    if img_file:
+
+        st.image(img_file, caption="Hazır", use_container_width=True)
+
+
+
+# --- 5. ANA EKRAN ---
+
+st.markdown(f"<div class='tcdd-title'>TCDD Teknik - {st.session_state.current_chat_id}</div>", unsafe_allow_html=True)
+
+
+
+# Mevcut Sohbet Geçmişi
+
+current_messages = st.session_state.all_chats[st.session_state.current_chat_id]
+
+for msg in current_messages:
+
+    with st.chat_message(msg["role"]):
+
+        st.markdown(msg["content"])
+
+
+
+# --- 6. SORU VE ANALİZ ---
 
 if prompt := st.chat_input("Teknik sorunuzu yazın..."):
-    st.session_state.chats[active_id]["messages"].append({"role": "user", "content": prompt})
+
+    # Mesajı ekle ve göster
+
+    current_messages.append({"role": "user", "content": prompt})
+
     with st.chat_message("user"):
+
         st.markdown(prompt)
 
+
+
     with st.chat_message("assistant"):
-        with st.spinner("Analiz ediliyor..."):
-            # Bilgi bankasındaki PDF yollarını al
-            base_path = os.path.join(os.path.dirname(__file__), "bilgi_bankasi")
-            pdfs = [os.path.join(base_path, f) for f in os.listdir(base_path) if f.lower().endswith(".pdf")] if os.path.exists(base_path) else []
+
+        with st.spinner("Bilgi bankası ve görsel inceleniyor..."):
+
             
-            yanit = teknik_motor(prompt, pdfs, img_file)
-            st.markdown(yanit)
-            st.session_state.chats[active_id]["messages"].append({"role": "assistant", "content": yanit})
-            st.rerun()
+
+            # Veri Paketleme
+
+            payload_parts = [{"text": "Sen TCDD Teknik uzmanısın. Belgeleri ve varsa fotoğrafı analiz et."}]
+
+            payload_parts.append({"text": f"Soru: {prompt}"})
+
+            
+
+            # PDF'leri sadece ihtiyaç olduğunda ekle (Kota koruması)
+
+            pdf_docs = load_docs()
+
+            for d in pdf_docs:
+
+                payload_parts.append({"inline_data": d})
+
+            
+
+            # Fotoğraf varsa ekle
+
+            if img_file:
+
+                img_b64 = base64.b64encode(img_file.getvalue()).decode()
+
+                payload_parts.append({"inline_data": {"mime_type": "image/jpeg", "data": img_b64}})
+
+
+
+            # API Çağrısı
+
+            try:
+
+                response = requests.post(URL, json={"contents": [{"parts": payload_parts}]}, timeout=30)
+
+                res_json = response.json()
+
+                
+
+                if 'candidates' in res_json:
+
+                    ans = res_json['candidates'][0]['content']['parts'][0]['text']
+
+                    st.markdown(ans)
+
+                    current_messages.append({"role": "assistant", "content": ans})
+
+                else:
+
+                    err = res_json.get('error', {}).get('message', 'Bilinmeyen hata.')
+
+                    st.error(f"Analiz Hatası: {err}")
+
+            except Exception as e:
+
+                st.error(f"Bağlantı zaman aşımına uğradı. Dosyalar çok büyük olabilir. Hata: {e}")
