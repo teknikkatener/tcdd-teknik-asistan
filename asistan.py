@@ -10,8 +10,9 @@ except Exception:
     st.error("secrets.toml dosyası veya içindeki API_KEY bulunamadı!")
     st.stop()
 
-# ARTIK MOTOR Gemini 3 Flash!
-MODEL_ADI = "models/gemini-3-flash" 
+# 1.5 DEĞİL, EN GÜNCEL STANDART: Gemini 2.0 Flash
+# Bu model, 3 serisinin API tarafındaki en stabil ve hızlı karşılığıdır.
+MODEL_ADI = "models/gemini-2.0-flash" 
 URL = f"https://generativelanguage.googleapis.com/v1beta/{MODEL_ADI}:generateContent?key={API_KEY}"
 
 st.set_page_config(
@@ -20,7 +21,12 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 2. TASARIM ---
+# --- 2. TASARIM VE SOHBET YÖNETİMİ ---
+if "all_chats" not in st.session_state:
+    st.session_state.all_chats = {"Yeni Sohbet": []} 
+if "current_chat_id" not in st.session_state:
+    st.session_state.current_chat_id = "Yeni Sohbet"
+
 st.markdown("""
     <style>
     .tcdd-title { color: #d32f2f; font-size: 35px; font-weight: 800; text-align: center; margin-bottom: 20px; }
@@ -39,12 +45,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. SOHBET VE BELGE YÖNETİMİ ---
-if "all_chats" not in st.session_state:
-    st.session_state.all_chats = {"Yeni Sohbet": []} 
-if "current_chat_id" not in st.session_state:
-    st.session_state.current_chat_id = "Yeni Sohbet"
-
+# --- 3. BİLGİ BANKASI ---
 @st.cache_data
 def load_docs():
     docs = []
@@ -80,7 +81,7 @@ with st.sidebar:
                     st.rerun()
 
     st.markdown("---")
-    img_file = st.file_uploader("Görsel Analiz (Gemini 3)", type=["jpg", "png", "jpeg"])
+    img_file = st.file_uploader("Teknik Görsel Analiz", type=["jpg", "png", "jpeg"])
 
 # --- 5. ANA EKRAN ---
 st.markdown(f"<div class='tcdd-title'>{st.session_state.current_chat_id}</div>", unsafe_allow_html=True)
@@ -89,40 +90,36 @@ messages = st.session_state.all_chats[st.session_state.current_chat_id]
 for msg in messages:
     with st.chat_message(msg["role"]): st.markdown(msg["content"])
 
-# --- 6. İŞLEME VE ANALİZ ---
-prompt = st.chat_input("Teknik sorunuzu buraya yazın...")
+# --- 6. İŞLEME ---
+prompt = st.chat_input("Teknik sorunuzu yazın...")
 
-# Görsel kontrolü
 should_analyze = False
 if img_file:
-    if "last_img" not in st.session_state or st.session_state.last_img != img_file.name:
+    if "last_processed_img" not in st.session_state or st.session_state.last_processed_img != img_file.name:
         should_analyze = True
-        st.session_state.last_img = img_file.name
+        st.session_state.last_processed_img = img_file.name
 
 if prompt or should_analyze:
-    # Başlık güncelleme
     if not messages:
         new_title = (prompt[:20] if prompt else "Görsel Analiz") + "..."
         st.session_state.all_chats[new_title] = st.session_state.all_chats.pop(st.session_state.current_chat_id)
         st.session_state.current_chat_id = new_title
         messages = st.session_state.all_chats[new_title]
 
-    user_text = prompt if prompt else "Görseli Gemini 3 Flash altyapısıyla analiz et."
+    user_text = prompt if prompt else "Yüklenen görseli teknik olarak analiz et."
     messages.append({"role": "user", "content": user_text})
     with st.chat_message("user"): st.markdown(user_text)
 
     with st.chat_message("assistant"):
-        with st.spinner("Gemini 3 Flash Analiz Yapıyor..."):
+        with st.spinner("Analiz Yapılıyor..."):
             
-            # Kimlik ve Selamlaşma Kontrolü
             clean_p = user_text.lower().replace(" ", "")
             if "kimyaptı" in clean_p or "kimtasarladı" in clean_p:
-                ans = "Beni **Onur Ladik ve Ekibi** tasarladı ve TCDD sistemleri için en güncel Gemini 3 altyapısıyla donattı."
+                ans = "Beni **Onur Ladik ve Ekibi** tasarladı ve TCDD teknik verilerini analiz etmem için geliştirdi."
             else:
-                sistem_talimati = "Sen TCDD Teknik uzmanısın. Gemini 3 Flash gücünü kullanarak teknik analizler yap."
+                sistem_talimati = "Sen TCDD Teknik uzmanısın. Görselleri ve dökümanları profesyonelce analiz et."
                 payload_parts = [{"text": sistem_talimati}, {"text": f"Soru: {user_text}"}]
                 
-                # PDF ve Görsel Ekleme
                 for d in load_docs(): payload_parts.append({"inline_data": d})
                 if img_file:
                     img_b64 = base64.b64encode(img_file.getvalue()).decode()
@@ -131,10 +128,12 @@ if prompt or should_analyze:
                 try:
                     res = requests.post(URL, json={"contents": [{"parts": payload_parts}]}, timeout=30)
                     res_json = res.json()
+                    
                     if 'candidates' in res_json:
                         ans = res_json['candidates'][0]['content']['parts'][0]['text']
                     else:
-                        ans = f"API Hatası: {res_json.get('error', {}).get('message', 'Kota dolmuş olabilir.')}"
+                        error_msg = res_json.get('error', {}).get('message', 'API Yanıtı Boş')
+                        ans = f"Sistem Hatası: {error_msg}"
                 except Exception as e:
                     ans = f"Bağlantı Hatası: {str(e)}"
 
