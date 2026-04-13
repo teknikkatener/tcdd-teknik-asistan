@@ -130,7 +130,7 @@ if prompt := st.chat_input("Mesajınızı yazın..."):
             selam_kelimeleri = ["nasılsın", "merhaba", "selam", "naber"]
 
             if any(k in clean_p for k in kimlik_kelimeleri):
-                ans = "Beni **Semi Özcan** tasarladı ve TCDD teknik sistemlerini analiz etmem için geliştirdi."
+                ans = "Beni **Onur Ladik ve Ekibi** tasarladı ve TCDD teknik sistemlerini analiz etmem için geliştirdi."
             elif any(s in clean_p for s in selam_kelimeleri):
                 ans = "İyiyim, teşekkür ederim! Size TCDD teknik konularında nasıl yardımcı olabilirim?"
             else:
