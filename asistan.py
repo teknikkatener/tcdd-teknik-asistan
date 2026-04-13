@@ -11,8 +11,8 @@ except Exception:
     st.error("secrets.toml dosyası veya içindeki API_KEY bulunamadı!")
     st.stop()
 
-# Ücretsiz katmanda bazen gemini-2.5-flash-lite stabil olmayabilir, alternatif olarak gemini-1.5-flash da denenebilir.
-MODEL_ADI = "models/gemini-1.5-flash" 
+# Model ismini API'nin en güncel kabul ettiği formata çektik
+MODEL_ADI = "models/gemini-1.5-flash-latest" 
 URL = f"https://generativelanguage.googleapis.com/v1beta/{MODEL_ADI}:generateContent?key={API_KEY}"
 
 st.set_page_config(
@@ -110,7 +110,7 @@ for msg in current_messages:
 # --- 6. ANALİZ VE AKIŞ ---
 prompt = st.chat_input("Mesajınızı yazın...")
 
-# Otomatik görsel tetikleyici kontrolü
+# Görsel tetikleyici kontrolü
 should_analyze = False
 if img_file:
     if "last_processed_img" not in st.session_state or st.session_state.last_processed_img != img_file.name:
@@ -118,7 +118,6 @@ if img_file:
         st.session_state.last_processed_img = img_file.name
 
 if prompt or should_analyze:
-    # Başlıklandırma
     if not current_messages and (st.session_state.current_chat_id.startswith("Sohbet") or st.session_state.current_chat_id == "Yeni Sohbet"):
         title_source = prompt if prompt else "Görsel Analiz"
         new_title = title_source[:20] + "..." if len(title_source) > 20 else title_source
@@ -161,9 +160,8 @@ if prompt or should_analyze:
                     if 'candidates' in res_json:
                         ans = res_json['candidates'][0]['content']['parts'][0]['text']
                     else:
-                        # Hatanın ne olduğunu anlamak için detay yazdırıyoruz
                         error_msg = res_json.get('error', {}).get('message', 'Bilinmeyen API Hatası')
-                        ans = f"API Hatası: {error_msg}. Lütfen bir süre sonra tekrar deneyin."
+                        ans = f"API Hatası: {error_msg}."
                 except Exception as e:
                     ans = f"Bağlantı Hatası: {str(e)}"
 
