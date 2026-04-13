@@ -114,4 +114,25 @@ if prompt := st.chat_input("Teknik sorunuzu yazın..."):
             payload_parts.append({"text": f"Soru: {prompt}"})
             
             pdf_docs = load_docs()
-            for d in pdf_docs
+            for d in pdf_docs:
+                payload_parts.append({"inline_data": d})
+            
+            if img_file:
+                img_b64 = base64.b64encode(img_file.getvalue()).decode()
+                payload_parts.append({"inline_data": {"mime_type": "image/jpeg", "data": img_b64}})
+
+            try:
+                response = requests.post(URL, json={"contents": [{"parts": payload_parts}]}, timeout=30)
+                res_json = response.json()
+                
+                if 'candidates' in res_json:
+                    ans = res_json['candidates'][0]['content']['parts'][0]['text']
+                    st.markdown(ans)
+                    current_messages.append({"role": "assistant", "content": ans})
+                else:
+                    err = res_json.get('error', {}).get('message', 'Hata oluştu.')
+                    st.error(f"Analiz Hatası: {err}")
+            except Exception as e:
+                st.error(f"Bağlantı hatası: {e}")
+            
+            st.rerun() # Başlığın anlık güncellenmesi için
