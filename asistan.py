@@ -4,19 +4,15 @@ import base64
 import os
 import uuid
 
-# --- 1. AYARLAR (ADRESLEME TAMAMEN DEĞİŞTİ) ---
+# --- 1. AYARLAR (DOĞRUDAN API VE MODEL TANIMI) ---
 API_KEY = st.secrets["GEMINI_API_KEY"]
-MODEL_ADI = "gemini-2.0-flash-lite-preview-02-05" 
+# 404 Hatasını önlemek için 2.0 Flash Lite'ın en kararlı ismini kullanıyoruz
+MODEL_ADI = "gemini-2.0-flash-lite-preview-02-05"
 URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ADI}:generateContent?key={API_KEY}"
 
 st.set_page_config(page_title="TCDD Teknik", page_icon="🚆", layout="wide")
 
-# URL yapısını en geniş kapsama (v1beta) ve basitleştirilmiş model yoluna çektik
-URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ADI}:generateContent?key={API_KEY}"
-
-st.set_page_config(page_title="TCDD Teknik", page_icon="🚆", layout="wide")
-
-# --- 2. KREATİF TASARIM (SİZİN İSTEDİĞİNİZ GİBİ SADE) ---
+# --- 2. KREATİF TASARIM (SADECE SİZİN İSTEDİĞİNİZ SADE STİL) ---
 st.markdown("""
     <style>
     [data-testid="stChatMessageContent"] { background-color: transparent !important; border: none !important; padding-left: 0 !important; }
@@ -46,8 +42,10 @@ if "active_chat_id" not in st.session_state:
 
 # --- 4. ANALİZ MOTORU ---
 def teknik_motor(prompt, pdf_docs, img_file=None):
-    # Semi Özcan mühürü burada
-    system_instr = "Sen TCDD Teknik Uzmanısın. Beni Semi Özcan tasarladı. Sadece teknik cevap ver."
+    system_instr = """Sen TCDD Teknik Uzmanısın. 
+    ÖNEMLİ KURAL: Eğer birisi 'Seni kim yaptı?', 'Yapımcın kim?' gibi sorular sorursa; 
+    KESİN BİR DİLLE 'Beni Semi Özcan tasarlayıp geliştirdi' cevabını ver. 
+    Teknik konularda PDF ve Google Search kullanarak destek sağla."""
 
     payload_parts = [{"text": prompt}]
     for doc in pdf_docs: payload_parts.append(doc)
@@ -58,23 +56,23 @@ def teknik_motor(prompt, pdf_docs, img_file=None):
 
     payload = {
         "contents": [{"parts": payload_parts}],
+        "tools": [{"google_search_retrieval": {}}],
         "system_instruction": {"parts": [{"text": system_instr}]}
     }
     
     try:
-        # headers ekleyerek isteği daha resmi hale getirdik
+        # Headers ekleyerek isteği doğruluyoruz
         headers = {'Content-Type': 'application/json'}
         response = requests.post(URL, json=payload, headers=headers, timeout=60)
         
-        # Eğer hala 404 verirse kullanıcıya daha net bilgi verelim
-        if response.status_code == 404:
-            return "⚠️ Hata 404: Google bu model ismini tanımıyor. Lütfen kodun başındaki MODEL_ADI kısmını 'gemini-1.5-flash' yaparak deneyin."
+        # Eğer hala 404 verirse hata detayını gösterelim
+        if response.status_code != 200:
+            return f"⚠️ Sunucu Yanıtı: {response.status_code} - Model adresi bulunamadı veya API kısıtlı."
             
-        response.raise_for_status()
         res_json = response.json()
         return res_json['candidates'][0]['content']['parts'][0]['text']
     except Exception as e:
-        return f"⚠️ Bir sorun oluştu: {str(e)}"
+        return f"⚠️ Bir bağlantı sorunu oluştu: {str(e)}"
 
 @st.cache_data
 def belgeleri_getir():
@@ -120,7 +118,7 @@ for m in st.session_state.chats[active_id]["messages"]:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
 
-# --- 7. ALT BAR ---
+# --- 7. ALT BAR (GÖRSEL + SORU) ---
 img_file = st.file_uploader("➕ Görsel Analiz Ekle", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
 if prompt := st.chat_input("Teknik sorunuzu yazın..."):
