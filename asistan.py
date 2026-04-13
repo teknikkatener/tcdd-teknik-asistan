@@ -14,7 +14,12 @@ except Exception:
 MODEL_ADI = "models/gemini-2.5-flash-lite" 
 URL = f"https://generativelanguage.googleapis.com/v1beta/{MODEL_ADI}:generateContent?key={API_KEY}"
 
-st.set_page_config(page_title="TCDD Teknik", page_icon="🚆", layout="wide")
+# LOGO BURADA TANIMLANDI:
+st.set_page_config(
+    page_title="TCDD Teknik", 
+    page_icon="Tcdd_Teknik_Logo.png", 
+    layout="wide"
+)
 
 # --- 2. TASARIM VE SOHBET YÖNETİMİ ---
 if "all_chats" not in st.session_state:
@@ -55,7 +60,7 @@ def load_docs():
                     docs.append({"mime_type": "application/pdf", "data": base64.b64encode(file.read()).decode()})
     return docs
 
-# --- 4. SOL PANEL (TCDD TEKNİK Aİ / DÜZENLE / SİL) ---
+# --- 4. SOL PANEL ---
 with st.sidebar:
     st.markdown("<h2 style='text-align: center; color: #d32f2f; font-size: 24px;'>🚆 TCDD TEKNİK Aİ</h2>", unsafe_allow_html=True)
     
@@ -120,17 +125,15 @@ if prompt := st.chat_input("Mesajınızı yazın..."):
     with st.chat_message("assistant"):
         with st.spinner("İşleniyor..."):
             
-            # --- ÖZEL KİMLİK VE SELAMLAŞMA SÜZGECİ ---
             clean_p = prompt.lower().replace(" ", "")
             kimlik_kelimeleri = ["kimyaptı", "kimtasarladı", "senikim", "yapımcın", "kimingeliştirdi"]
-            selam_kelimeleri = ["nasılsın", "merhaba", "selam", "naber", "gunaydin"]
+            selam_kelimeleri = ["nasılsın", "merhaba", "selam", "naber"]
 
             if any(k in clean_p for k in kimlik_kelimeleri):
                 ans = "Beni **Semi Özcan** tasarladı ve TCDD teknik sistemlerini analiz etmem için geliştirdi."
             elif any(s in clean_p for s in selam_kelimeleri):
                 ans = "İyiyim, teşekkür ederim! Size TCDD teknik konularında nasıl yardımcı olabilirim?"
             else:
-                # TEKNİK SÜREÇ
                 sistem_talimati = "Sen TCDD Teknik uzmanısın. Belgeleri analiz et ve teknik yanıtlar ver."
                 payload_parts = [{"text": sistem_talimati}, {"text": f"Soru: {prompt}"}]
                 
@@ -147,7 +150,7 @@ if prompt := st.chat_input("Mesajınızı yazın..."):
                     res_json = response.json()
                     ans = res_json['candidates'][0]['content']['parts'][0]['text'] if 'candidates' in res_json else "API yanıt veremedi."
                 except:
-                    ans = "Bağlantı sırasında bir hata oluştu."
+                    ans = "Teknik bir hata oluştu."
 
             st.markdown(ans)
             current_messages.append({"role": "assistant", "content": ans})
