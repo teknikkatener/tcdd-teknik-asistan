@@ -55,7 +55,7 @@ def load_docs():
                     docs.append({"mime_type": "application/pdf", "data": base64.b64encode(file.read()).decode()})
     return docs
 
-# --- 4. SOL PANEL (YENİ SOHBET / DÜZENLE / SİL) ---
+# --- 4. SOL PANEL (TCDD TEKNİK Aİ / DÜZENLE / SİL) ---
 with st.sidebar:
     st.markdown("<h2 style='text-align: center; color: #d32f2f; font-size: 24px;'>🚆 TCDD TEKNİK Aİ</h2>", unsafe_allow_html=True)
     
@@ -85,8 +85,8 @@ with st.sidebar:
                     st.rerun()
 
     if "edit_target" in st.session_state:
-        new_name = st.text_input("Yeni başlık yazın:", value=st.session_state.edit_target)
-        if st.button("Başlığı Güncelle"):
+        new_name = st.text_input("Yeni başlık:", value=st.session_state.edit_target)
+        if st.button("Güncelle"):
             st.session_state.all_chats[new_name] = st.session_state.all_chats.pop(st.session_state.edit_target)
             st.session_state.current_chat_id = new_name
             del st.session_state.edit_target
@@ -118,8 +118,26 @@ if prompt := st.chat_input("Mesajınızı yazın..."):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("Düşünüyor..."):
+        with st.spinner("İşleniyor..."):
             
-            # Hataya sebep olan kısım düzeltildi
-            low_p = prompt.lower().replace(" ", "")
-            kimlik
+            # --- ÖZEL KİMLİK VE SELAMLAŞMA SÜZGECİ ---
+            clean_p = prompt.lower().replace(" ", "")
+            kimlik_kelimeleri = ["kimyaptı", "kimtasarladı", "senikim", "yapımcın", "kimingeliştirdi"]
+            selam_kelimeleri = ["nasılsın", "merhaba", "selam", "naber", "gunaydin"]
+
+            if any(k in clean_p for k in kimlik_kelimeleri):
+                ans = "Beni **Semi Özcan** tasarladı ve TCDD teknik sistemlerini analiz etmem için geliştirdi."
+            elif any(s in clean_p for s in selam_kelimeleri):
+                ans = "İyiyim, teşekkür ederim! Size TCDD teknik konularında nasıl yardımcı olabilirim?"
+            else:
+                # TEKNİK SÜREÇ
+                sistem_talimati = "Sen TCDD Teknik uzmanısın. Belgeleri analiz et ve teknik yanıtlar ver."
+                payload_parts = [{"text": sistem_talimati}, {"text": f"Soru: {prompt}"}]
+                
+                pdf_docs = load_docs()
+                for d in pdf_docs:
+                    payload_parts.append({"inline_data": d})
+                
+                if img_file:
+                    img_b64 = base64.b64encode(img_file.getvalue()).decode()
+                    payload_parts.append({"inline_data": {"mime_type": "
