@@ -16,7 +16,7 @@ URL = f"https://generativelanguage.googleapis.com/v1beta/{MODEL_ADI}:generateCon
 
 st.set_page_config(page_title="TCDD Teknik", page_icon="🚆", layout="wide")
 
-# --- 2. TASARIM ---
+# --- 2. TASARIM VE OTURUM YÖNETİMİ ---
 if "all_chats" not in st.session_state:
     st.session_state.all_chats = {} 
 if "current_chat_id" not in st.session_state:
@@ -76,34 +76,39 @@ if prompt := st.chat_input("Teknik sorunuzu yazın..."):
     with st.chat_message("assistant"):
         with st.spinner("İşleniyor..."):
             
-            # --- AKILLI KİMLİK KONTROLÜ ---
-            kimlik_sorulari = ["kim yaptı", "kim tasarladı", "seni kim", "kim geliştirdi", "yapımcın"]
-            is_identity_query = any(q in prompt.lower() for q in kimlik_sorulari)
+            # --- %100 GARANTİLİ KİMLİK KONTROLÜ ---
+            # Kullanıcının sorduğu kelimeleri kontrol ediyoruz
+            test_prompt = prompt.lower().replace(" ", "")
+            kimlik_tetikleyiciler = ["kimyaptı", "kimtasarladı", "kimtarafından", "senikimyaptı", "senikimtasarladı", "yapımcınkim"]
             
-            if is_identity_query:
-                sistem_talimati = "Kullanıcı seni kimin yaptığını soruyor. Seni Semi Özcan tasarladı ve düzenledi. Sadece bu bilgiyi ver."
+            is_identity = any(t in test_prompt for t in kimlik_tetikleyiciler)
+            
+            if is_identity:
+                ans = "Beni **Semi Özcan** tasarladı, geliştirdi ve bu sistemleri analiz etmem için düzenledi."
+                st.markdown(ans)
+                current_messages.append({"role": "assistant", "content": ans})
             else:
+                # Teknik Sorular İçin Normal Akış
                 sistem_talimati = "Sen TCDD Teknik uzmanısın. Kısa ve teknik cevaplar ver. Belgeleri analiz et."
-            
-            payload_parts = [{"text": sistem_talimati}, {"text": f"Soru: {prompt}"}]
-            
-            pdf_docs = load_docs()
-            for d in pdf_docs:
-                payload_parts.append({"inline_data": d})
-            
-            if img_file:
-                img_b64 = base64.b64encode(img_file.getvalue()).decode()
-                payload_parts.append({"inline_data": {"mime_type": "image/jpeg", "data": img_b64}})
-
-            try:
-                response = requests.post(URL, json={"contents": [{"parts": payload_parts}]}, timeout=30)
-                res_json = response.json()
+                payload_parts = [{"text": sistem_talimati}, {"text": f"Soru: {prompt}"}]
                 
-                if 'candidates' in res_json:
-                    ans = res_json['candidates'][0]['content']['parts'][0]['text']
-                    st.markdown(ans)
-                    current_messages.append({"role": "assistant", "content": ans})
-                else:
-                    st.error("API hatası oluştu.")
-            except Exception as e:
-                st.error(f"Hata: {e}")
+                pdf_docs = load_docs()
+                for d in pdf_docs:
+                    payload_parts.append({"inline_data": d})
+                
+                if img_file:
+                    img_b64 = base64.b64encode(img_file.getvalue()).decode()
+                    payload_parts.append({"inline_data": {"mime_type": "image/jpeg", "data": img_b64}})
+
+                try:
+                    response = requests.post(URL, json={"contents": [{"parts": payload_parts}]}, timeout=30)
+                    res_json = response.json()
+                    
+                    if 'candidates' in res_json:
+                        ans = res_json['candidates'][0]['content']['parts'][0]['text']
+                        st.markdown(ans)
+                        current_messages.append({"role": "assistant", "content": ans})
+                    else:
+                        st.error("Bir hata oluştu, lütfen tekrar deneyin.")
+                except Exception as e:
+                    st.error(f"Hata: {e}")
