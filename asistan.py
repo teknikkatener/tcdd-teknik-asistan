@@ -165,4 +165,8 @@ if prompt or should_analyze:
                         error_msg = res_json.get('error', {}).get('message', 'Bilinmeyen Hata')
                         ans = f"API Hatası: {error_msg}. Lütfen ayarları kontrol edin."
                 except Exception as e:
-                    ans = f"Bağlantı Hatası: {
+                    ans = f"Bağlantı Hatası: {str(e)}"
+
+            st.markdown(ans)
+            current_messages.append({"role": "assistant", "content": ans})
+            st.rerun()
