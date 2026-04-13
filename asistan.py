@@ -4,14 +4,15 @@ import base64
 import os
 import uuid
 
-# --- 1. AYARLAR (2.0 FLASH LITE SABİT) ---
+# --- 1. AYARLAR (MODEL ADRESI DÜZELTİLDİ) ---
 API_KEY = st.secrets["GEMINI_API_KEY"]
-MODEL_ADI = "gemini-2.0-flash-lite-preview-02-05" 
+# 404 Hatasını engellemek için model ismi güncellendi
+MODEL_ADI = "gemini-2.0-flash-lite-preview" 
 URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ADI}:generateContent?key={API_KEY}"
 
 st.set_page_config(page_title="TCDD Teknik", page_icon="🚆", layout="wide")
 
-# --- 2. KREATİF TASARIM (SADECE SİZİN İSTEDİĞİNİZ CSS) ---
+# --- 2. KREATİF TASARIM (SİZİN KODUNUZ) ---
 st.markdown("""
     <style>
     [data-testid="stChatMessageContent"] { background-color: transparent !important; border: none !important; padding-left: 0 !important; }
@@ -39,7 +40,7 @@ if "active_chat_id" not in st.session_state:
     st.session_state.chats[id] = {"title": "Yeni Arıza Kaydı", "messages": []}
     st.session_state.active_chat_id = id
 
-# --- 4. ANALİZ MOTORU (BAĞLANTI DÜZELTİLDİ) ---
+# --- 4. ANALİZ MOTORU ---
 def teknik_motor(prompt, pdf_docs, img_file=None):
     system_instr = """Sen TCDD Teknik Uzmanısın. 
     ÖNEMLİ KURAL: Eğer birisi 'Seni kim yaptı?', 'Yapımcın kim?' gibi sorular sorursa; 
@@ -60,18 +61,16 @@ def teknik_motor(prompt, pdf_docs, img_file=None):
     }
     
     try:
-        # Bulut sunucusu için zaman aşımını 90 saniye yaptık
         response = requests.post(URL, json=payload, timeout=90)
         response.raise_for_status()
         res_json = response.json()
         return res_json['candidates'][0]['content']['parts'][0]['text']
     except Exception as e:
-        return f"⚠️ Yanıt alınamadı. Lütfen internetinizi veya API anahtarınızı kontrol edin. (Hata: {str(e)})"
+        return f"⚠️ Yanıt alınamadı. Hata: {str(e)}"
 
 @st.cache_data
 def belgeleri_getir():
     docs = []
-    # Dosya yolunu garantilemek için 'path join' kullanıyoruz
     path = os.path.join(os.path.dirname(__file__), "bilgi_bankasi")
     if os.path.exists(path):
         for f in os.listdir(path):
@@ -114,7 +113,7 @@ for m in st.session_state.chats[active_id]["messages"]:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
 
-# --- 7. ALT BAR (GÖRSEL + SORU) ---
+# --- 7. ALT BAR ---
 img_file = st.file_uploader("➕ Görsel Analiz Ekle", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
 if prompt := st.chat_input("Teknik sorunuzu yazın..."):
