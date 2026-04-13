@@ -4,16 +4,19 @@ import base64
 import os
 import uuid
 
-# --- 1. AYARLAR (MODEL ADRESI VE API VERSİYONU GÜNCEL) ---
+# --- 1. AYARLAR (ADRESLEME TAMAMEN DEĞİŞTİ) ---
 API_KEY = st.secrets["GEMINI_API_KEY"]
-# 404 hatasını aşmak için en kararlı sürüm adı
-MODEL_ADI = "gemini-2.0-flash-lite-preview-02-05" 
-# URL yapısını v1beta'dan v1'e çekerek daha stabil bir yol deniyoruz
-URL = f"https://generativelanguage.googleapis.com/v1/models/{MODEL_ADI}:generateContent?key={API_KEY}"
+
+# EĞER 404 DEVAM EDERSE, BURADAKİ MODEL_ADI'NI "gemini-1.5-flash" YAPIN. 
+# ÇÜNKÜ 2.0 LITE ŞU AN BAZI BÖLGELERDE API'YE KAPALI OLABİLİR.
+MODEL_ADI = "gemini-2.0-flash-exp" 
+
+# URL yapısını en geniş kapsama (v1beta) ve basitleştirilmiş model yoluna çektik
+URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ADI}:generateContent?key={API_KEY}"
 
 st.set_page_config(page_title="TCDD Teknik", page_icon="🚆", layout="wide")
 
-# --- 2. KREATİF TASARIM (SİZİN KODUNUZ - KUTUSUZ) ---
+# --- 2. KREATİF TASARIM (SİZİN İSTEDİĞİNİZ GİBİ SADE) ---
 st.markdown("""
     <style>
     [data-testid="stChatMessageContent"] { background-color: transparent !important; border: none !important; padding-left: 0 !important; }
@@ -43,10 +46,8 @@ if "active_chat_id" not in st.session_state:
 
 # --- 4. ANALİZ MOTORU ---
 def teknik_motor(prompt, pdf_docs, img_file=None):
-    system_instr = """Sen TCDD Teknik Uzmanısın. 
-    ÖNEMLİ KURAL: Eğer birisi 'Seni kim yaptı?', 'Yapımcın kim?' gibi sorular sorursa; 
-    GURURLA ve KESİN BİR DİLLE 'Beni Semi Özcan tasarlayıp geliştirdi' cevabını ver. 
-    PDF belgeleri ve internet önceliğindir."""
+    # Semi Özcan mühürü burada
+    system_instr = "Sen TCDD Teknik Uzmanısın. Beni Semi Özcan tasarladı. Sadece teknik cevap ver."
 
     payload_parts = [{"text": prompt}]
     for doc in pdf_docs: payload_parts.append(doc)
@@ -61,17 +62,19 @@ def teknik_motor(prompt, pdf_docs, img_file=None):
     }
     
     try:
-        response = requests.post(URL, json=payload, timeout=90)
-        # Eğer hala 404 verirse, alternatif URL denemesi yapıyoruz
+        # headers ekleyerek isteği daha resmi hale getirdik
+        headers = {'Content-Type': 'application/json'}
+        response = requests.post(URL, json=payload, headers=headers, timeout=60)
+        
+        # Eğer hala 404 verirse kullanıcıya daha net bilgi verelim
         if response.status_code == 404:
-            alt_url = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ADI}:generateContent?key={API_KEY}"
-            response = requests.post(alt_url, json=payload, timeout=90)
+            return "⚠️ Hata 404: Google bu model ismini tanımıyor. Lütfen kodun başındaki MODEL_ADI kısmını 'gemini-1.5-flash' yaparak deneyin."
             
         response.raise_for_status()
         res_json = response.json()
         return res_json['candidates'][0]['content']['parts'][0]['text']
     except Exception as e:
-        return f"⚠️ Bağlantı hatası: {str(e)}"
+        return f"⚠️ Bir sorun oluştu: {str(e)}"
 
 @st.cache_data
 def belgeleri_getir():
@@ -94,7 +97,6 @@ with st.sidebar:
         st.rerun()
     
     st.markdown("---")
-    st.write("📂 **Geçmiş Sohbetler**")
     for cid in list(st.session_state.chats.keys()):
         cols = st.columns([0.8, 0.2])
         with cols[0]:
