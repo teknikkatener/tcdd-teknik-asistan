@@ -109,54 +109,33 @@ for msg in current_messages:
         st.markdown(msg["content"])
 
 # --- 6. SORU VE ANALİZ ---
-prompt = st.chat_input("Mesajınızı yazın...")
-
-# GÖRSEL YÜKLENDİĞİNDE OTOMATİK TETİKLEYİCİ
-# Eğer bir prompt yoksa ama bir görsel yüklenmişse, görseli analiz et
-should_analyze_image = not prompt and img_file and "image_analyzed" not in st.session_state
-
-if prompt or should_analyze_image:
+if prompt := st.chat_input("Mesajınızı yazın..."):
     
     # Otomatik Başlıklandırma
     if not current_messages and (st.session_state.current_chat_id.startswith("Sohbet") or st.session_state.current_chat_id == "Yeni Sohbet"):
-        # Başlık için prompt yoksa (sadece görsel varsa), "Görsel Analiz" yap
-        title_source = prompt if prompt else "Görsel Analiz"
-        new_title = title_source[:20] + "..." if len(title_source) > 20 else title_source
+        new_title = prompt[:20] + "..." if len(prompt) > 20 else prompt
         st.session_state.all_chats[new_title] = st.session_state.all_chats.pop(st.session_state.current_chat_id)
         st.session_state.current_chat_id = new_title
         current_messages = st.session_state.all_chats[new_title]
 
-    # Mesajı veya görseli chate ekle
-    if prompt:
-        current_messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-    elif should_analyze_image:
-        # Sadece görsel varsa, kullanıcı mesajı olarak "Görsel Yüklendi" yaz
-        current_messages.append({"role": "user", "content": "Görsel Yüklendi. Analiz ediliyor..."})
-        with st.chat_message("user"):
-            st.markdown("Görsel Yüklendi. Analiz ediliyor...")
-        # Tekrar tekrar analiz etmemesi için işaretle
-        st.session_state.image_analyzed = True
+    current_messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
     with st.chat_message("assistant"):
         with st.spinner("İşleniyor..."):
             
-            # --- ÖZEL KİMLİK VE SELAMLAŞMA SÜZGECİ ---
-            clean_p = prompt.lower().replace(" ", "") if prompt else ""
-            kimlik_kelimeleri = ["kimyaptı", "kimtasarladı", "senikim", "yapımcın", "kimingeliştirdi"]
+            clean_p = prompt.lower().replace(" ", "")
+            kimlik_kelimeleri = ["kimyaptı", "kimtasarladı", "senikim", "yapımcın", "kimingeliştirdi" "kim tarafından yapıldın",]
             selam_kelimeleri = ["nasılsın", "merhaba", "selam", "naber"]
 
-            if prompt and any(k in clean_p for k in kimlik_kelimeleri):
-                ans = "Beni **Semi Özcan** tasarladı ve TCDD teknik sistemlerini analiz etmem için geliştirdi."
-            elif prompt and any(s in clean_p for s in selam_kelimeleri):
+            if any(k in clean_p for k in kimlik_kelimeleri):
+                ans = "Beni **Onur Ladik ve Ekibi** tasarladı ve TCDD teknik sistemlerini analiz etmem için geliştirdi."
+            elif any(s in clean_p for s in selam_kelimeleri):
                 ans = "İyiyim, teşekkür ederim! Size TCDD teknik konularında nasıl yardımcı olabilirim?"
             else:
-                # TEKNİK SÜREÇ
-                sistem_talimati = "Sen TCDD Teknik uzmanısın. Belgeleri analiz et, görseli incele ve teknik yanıtlar ver."
-                # Eğer prompt yoksa (sadece görsel varsa), analiz sorusunu biz soralım
-                question = prompt if prompt else "Yüklenen bu görseli teknik olarak analiz et ve ne olduğunu açıkla."
-                payload_parts = [{"text": sistem_talimati}, {"text": f"Soru: {question}"}]
+                sistem_talimati = "Sen TCDD Teknik uzmanısın. Belgeleri analiz et ve teknik yanıtlar ver."
+                payload_parts = [{"text": sistem_talimati}, {"text": f"Soru: {prompt}"}]
                 
                 pdf_docs = load_docs()
                 for d in pdf_docs:
@@ -176,7 +155,3 @@ if prompt or should_analyze_image:
             st.markdown(ans)
             current_messages.append({"role": "assistant", "content": ans})
             st.rerun()
-
-# Eğer görsel yükleyici temizlenirse, analiz işaretini kaldır
-if not img_file and "image_analyzed" in st.session_state:
-    del st.session_state.image_analyzed
