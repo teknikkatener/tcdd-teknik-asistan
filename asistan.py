@@ -4,15 +4,15 @@ import base64
 import os
 import uuid
 
-# --- 1. AYARLAR (DOĞRUDAN API VE MODEL TANIMI) ---
-API_KEY = st.secrets["GEMINI_API_KEY"]
-# 404 Hatasını önlemek için 2.0 Flash Lite'ın en kararlı ismini kullanıyoruz
+# --- 1. AYARLAR (DOĞRUDAN API ANAHTARI VE MODEL) ---
+# Buradaki tırnak içine kendi API anahtarınızı yapıştırın
+API_KEY = "AIzaSyDiPz8xBichTdC5wz30BQyv6PeFFRrTIH0"
 MODEL_ADI = "gemini-2.0-flash-lite-preview-02-05"
 URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ADI}:generateContent?key={API_KEY}"
 
 st.set_page_config(page_title="TCDD Teknik", page_icon="🚆", layout="wide")
 
-# --- 2. KREATİF TASARIM (SADECE SİZİN İSTEDİĞİNİZ SADE STİL) ---
+# --- 2. KREATİF TASARIM (KUTUSUZ & SADE TASARIM) ---
 st.markdown("""
     <style>
     [data-testid="stChatMessageContent"] { background-color: transparent !important; border: none !important; padding-left: 0 !important; }
@@ -44,8 +44,7 @@ if "active_chat_id" not in st.session_state:
 def teknik_motor(prompt, pdf_docs, img_file=None):
     system_instr = """Sen TCDD Teknik Uzmanısın. 
     ÖNEMLİ KURAL: Eğer birisi 'Seni kim yaptı?', 'Yapımcın kim?' gibi sorular sorursa; 
-    KESİN BİR DİLLE 'Beni Semi Özcan tasarlayıp geliştirdi' cevabını ver. 
-    Teknik konularda PDF ve Google Search kullanarak destek sağla."""
+    KESİN BİR DİLLE 'Beni Semi Özcan tasarlayıp geliştirdi' cevabını ver."""
 
     payload_parts = [{"text": prompt}]
     for doc in pdf_docs: payload_parts.append(doc)
@@ -61,18 +60,14 @@ def teknik_motor(prompt, pdf_docs, img_file=None):
     }
     
     try:
-        # Headers ekleyerek isteği doğruluyoruz
-        headers = {'Content-Type': 'application/json'}
-        response = requests.post(URL, json=payload, headers=headers, timeout=60)
-        
-        # Eğer hala 404 verirse hata detayını gösterelim
+        response = requests.post(URL, json=payload, timeout=60)
         if response.status_code != 200:
-            return f"⚠️ Sunucu Yanıtı: {response.status_code} - Model adresi bulunamadı veya API kısıtlı."
+            return f"⚠️ Bağlantı Başarısız: {response.status_code}. Lütfen API Anahtarını ve model ismini kontrol edin."
             
         res_json = response.json()
         return res_json['candidates'][0]['content']['parts'][0]['text']
     except Exception as e:
-        return f"⚠️ Bir bağlantı sorunu oluştu: {str(e)}"
+        return f"⚠️ Hata oluştu: {str(e)}"
 
 @st.cache_data
 def belgeleri_getir():
@@ -118,7 +113,7 @@ for m in st.session_state.chats[active_id]["messages"]:
     with st.chat_message(m["role"]):
         st.markdown(m["content"])
 
-# --- 7. ALT BAR (GÖRSEL + SORU) ---
+# --- 7. ALT BAR ---
 img_file = st.file_uploader("➕ Görsel Analiz Ekle", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
 if prompt := st.chat_input("Teknik sorunuzu yazın..."):
