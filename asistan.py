@@ -4,15 +4,17 @@ import base64
 import os
 import uuid
 
-# --- 1. AYARLAR (DOĞRUDAN API ANAHTARI VE MODEL) ---
-# Buradaki tırnak içine kendi API anahtarınızı yapıştırın
+# --- 1. AYARLAR (BULUTTA ÇALIŞMASI İÇİN EN STABİL HALİ) ---
+# Kendi anahtarınızı buraya yazın
 API_KEY = "AIzaSyDiPz8xBichTdC5wz30BQyv6PeFFRrTIH0"
-MODEL_ADI = "gemini-2.0-flash-lite-preview-02-05"
+
+# Sunucuların en kolay tanıdığı 2.0 ismi budur:
+MODEL_ADI = "gemini-2.0-flash-exp" 
 URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ADI}:generateContent?key={API_KEY}"
 
 st.set_page_config(page_title="TCDD Teknik", page_icon="🚆", layout="wide")
 
-# --- 2. KREATİF TASARIM (KUTUSUZ & SADE TASARIM) ---
+# --- 2. KREATİF TASARIM (SİZİN STİLİNİZ) ---
 st.markdown("""
     <style>
     [data-testid="stChatMessageContent"] { background-color: transparent !important; border: none !important; padding-left: 0 !important; }
@@ -42,9 +44,7 @@ if "active_chat_id" not in st.session_state:
 
 # --- 4. ANALİZ MOTORU ---
 def teknik_motor(prompt, pdf_docs, img_file=None):
-    system_instr = """Sen TCDD Teknik Uzmanısın. 
-    ÖNEMLİ KURAL: Eğer birisi 'Seni kim yaptı?', 'Yapımcın kim?' gibi sorular sorursa; 
-    KESİN BİR DİLLE 'Beni Semi Özcan tasarlayıp geliştirdi' cevabını ver."""
+    system_instr = "Sen TCDD Teknik Uzmanısın. Beni Semi Özcan geliştirdi. Sadece teknik destek ver."
 
     payload_parts = [{"text": prompt}]
     for doc in pdf_docs: payload_parts.append(doc)
@@ -60,18 +60,26 @@ def teknik_motor(prompt, pdf_docs, img_file=None):
     }
     
     try:
-        response = requests.post(URL, json=payload, timeout=60)
+        # Sunucu tarafında 'User-Agent' ekleyerek tarayıcı gibi davranmasını sağlıyoruz
+        headers = {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0'
+        }
+        response = requests.post(URL, json=payload, headers=headers, timeout=60)
+        
         if response.status_code != 200:
-            return f"⚠️ Bağlantı Başarısız: {response.status_code}. Lütfen API Anahtarını ve model ismini kontrol edin."
+            # Hatanın ne olduğunu tam anlamak için detayı basıyoruz
+            return f"⚠️ Google Sunucu Hatası ({response.status_code}): {response.text}"
             
         res_json = response.json()
         return res_json['candidates'][0]['content']['parts'][0]['text']
     except Exception as e:
-        return f"⚠️ Hata oluştu: {str(e)}"
+        return f"⚠️ Teknik bir aksaklık: {str(e)}"
 
 @st.cache_data
 def belgeleri_getir():
     docs = []
+    # Klasör yolunu garantiye alıyoruz
     path = os.path.join(os.path.dirname(__file__), "bilgi_bankasi")
     if os.path.exists(path):
         for f in os.listdir(path):
@@ -118,7 +126,7 @@ img_file = st.file_uploader("➕ Görsel Analiz Ekle", type=["jpg", "jpeg", "png
 
 if prompt := st.chat_input("Teknik sorunuzu yazın..."):
     if st.session_state.chats[active_id]["title"] == "Yeni Arıza Kaydı":
-        st.session_state.chats[active_id]["title"] = " ".join(prompt.split()[:4]) + ".."
+        st.session_state.chats[active_id]["title"] = prompt[:20] + "..."
 
     st.session_state.chats[active_id]["messages"].append({"role": "user", "content": prompt})
     with st.chat_message("user"):
