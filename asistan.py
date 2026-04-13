@@ -6,10 +6,10 @@ import uuid
 
 # --- 1. AYARLAR (ADRESLEME TAMAMEN DEĞİŞTİ) ---
 API_KEY = st.secrets["GEMINI_API_KEY"]
+MODEL_ADI = "gemini-2.0-flash-lite-preview-02-05" 
+URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ADI}:generateContent?key={API_KEY}"
 
-# EĞER 404 DEVAM EDERSE, BURADAKİ MODEL_ADI'NI "gemini-1.5-flash" YAPIN. 
-# ÇÜNKÜ 2.0 LITE ŞU AN BAZI BÖLGELERDE API'YE KAPALI OLABİLİR.
-MODEL_ADI = "gemini-2.0-flash-exp" 
+st.set_page_config(page_title="TCDD Teknik", page_icon="🚆", layout="wide")
 
 # URL yapısını en geniş kapsama (v1beta) ve basitleştirilmiş model yoluna çektik
 URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ADI}:generateContent?key={API_KEY}"
