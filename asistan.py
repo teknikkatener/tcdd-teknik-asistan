@@ -22,6 +22,7 @@ if "all_chats" not in st.session_state:
 if "current_chat_id" not in st.session_state:
     st.session_state.current_chat_id = "Sohbet 1"
 
+# CSS - Kutucuksuz, yalın tasarım
 st.markdown("""
     <style>
     .tcdd-title { color: #d32f2f; font-size: 35px; font-weight: 800; text-align: center; margin-bottom: 20px; }
@@ -42,9 +43,6 @@ st.markdown("""
         color: #d32f2f !important;
         background: none !important;
     }
-    /* Silme butonu için özel stil */
-    .delete-btn { color: #ff4b4b !important; opacity: 0.5; }
-    .delete-btn:hover { opacity: 1; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -73,7 +71,6 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("📂 **Geçmiş Sohbetler**")
     
-    # Sohbet Listesi ve Silme İşlemi
     for chat_id in list(st.session_state.all_chats.keys()):
         col1, col2 = st.columns([0.85, 0.15])
         with col1:
@@ -103,25 +100,36 @@ for msg in current_messages:
         st.markdown(msg["content"])
 
 # --- 6. SORU VE ANALİZ ---
-if prompt := st.chat_input("Teknik sorunuzu yazın..."):
+if prompt := st.chat_input("Mesajınızı yazın..."):
+    
+    # --- OTOMATİK BAŞLIKLANDIRMA ---
+    # Eğer bu sohbetin ilk mesajıysa, başlığı bu cümle yapıyoruz
+    if not current_messages and st.session_state.current_chat_id.startswith("Sohbet"):
+        new_title = prompt[:20] + "..." if len(prompt) > 20 else prompt
+        # Eski anahtarı yeni başlıkla değiştir
+        st.session_state.all_chats[new_title] = st.session_state.all_chats.pop(st.session_state.current_chat_id)
+        st.session_state.current_chat_id = new_title
+        current_messages = st.session_state.all_chats[new_title]
+
     current_messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("İnceleniyor..."):
+        with st.spinner("Düşünüyor..."):
             
-            # --- ÖZEL KİMLİK FİLTRESİ ---
-            test_prompt = prompt.lower().replace(" ", "")
-            kimlik_sorulari = ["kimyaptı", "kimtasarladı", "senikim", "kimtarafından", "yapımcın"]
+            # 1. KİMLİK VE GÜNLÜK KONUŞMA KONTROLÜ
+            low_p = prompt.lower().replace(" ", "")
+            kimlik_tetik = ["kimyaptı", "kimtasarladı", "senikim", "yapımcın", "kimingeliştirdi"]
+            selam_tetik = ["nasılsın", "merhaba", "selam", "günaydın", "naber"]
             
-            if any(q in test_prompt for q in kimlik_sorulari):
-                ans = "Beni **Semi Özcan** tasarladı ve TCDD teknik sistemlerini analiz etmem için geliştirdi."
-                st.markdown(ans)
-                current_messages.append({"role": "assistant", "content": ans})
+            if any(t in low_p for t in kimlik_tetik):
+                ans = "Beni **Semi Özcan** tasarladı ve TCDD teknik verilerini analiz etmem için geliştirdi."
+            elif any(s in low_p for s in selam_tetik):
+                ans = "İyiyim, teşekkür ederim! Size TCDD teknik konularında nasıl yardımcı olabilirim?"
             else:
-                # Teknik Akış (Hiç bozulmadı)
-                sistem_talimati = "Sen TCDD Teknik uzmanısın. Belgeleri analiz et ve teknik cevaplar ver."
+                # 2. TEKNİK ANALİZ (SADECE BURADA BELGELERE BAKAR)
+                sistem_talimati = "Sen TCDD Teknik uzmanısın. Kısa ve teknik cevaplar ver."
                 payload_parts = [{"text": sistem_talimati}, {"text": f"Soru: {prompt}"}]
                 
                 pdf_docs = load_docs()
@@ -135,11 +143,13 @@ if prompt := st.chat_input("Teknik sorunuzu yazın..."):
                 try:
                     response = requests.post(URL, json={"contents": [{"parts": payload_parts}]}, timeout=30)
                     res_json = response.json()
-                    if 'candidates' in res_json:
-                        ans = res_json['candidates'][0]['content']['parts'][0]['text']
-                        st.markdown(ans)
-                        current_messages.append({"role": "assistant", "content": ans})
-                    else:
-                        st.error("Cevap alınamadı, API anahtarını kontrol edin.")
-                except Exception as e:
-                    st.error(f"Hata: {e}")
+                    ans = res_json['candidates'][0]['content']['parts'][0]['text'] if 'candidates' in res_json else "Bir sorun oluştu."
+                except:
+                    ans = "Teknik bir hata oluştu."
+
+            st.markdown(ans)
+            current_messages.append({"role": "assistant", "content": ans})
+            
+            # Başlığın anlık güncellenmesi için küçük bir tetikleyici
+            if len(current_messages) <= 2:
+                st.rerun()
