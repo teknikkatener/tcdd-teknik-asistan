@@ -57,7 +57,6 @@ def load_docs():
 
 # --- 4. SOL PANEL (YENİ SOHBET / DÜZENLE / SİL) ---
 with st.sidebar:
-    # İstediğiniz yeni başlık buraya eklendi
     st.markdown("<h2 style='text-align: center; color: #d32f2f; font-size: 24px;'>🚆 TCDD TEKNİK Aİ</h2>", unsafe_allow_html=True)
     
     if st.button("Yeni Sohbet +", use_container_width=True):
@@ -121,4 +120,6 @@ if prompt := st.chat_input("Mesajınızı yazın..."):
     with st.chat_message("assistant"):
         with st.spinner("Düşünüyor..."):
             
-            low
+            # Hataya sebep olan kısım düzeltildi
+            low_p = prompt.lower().replace(" ", "")
+            kimlik
