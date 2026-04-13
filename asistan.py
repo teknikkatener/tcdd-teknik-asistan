@@ -140,4 +140,15 @@ if prompt := st.chat_input("Mesajınızı yazın..."):
                 
                 if img_file:
                     img_b64 = base64.b64encode(img_file.getvalue()).decode()
-                    payload_parts.append({"inline_data": {"mime_type": "
+                    payload_parts.append({"inline_data": {"mime_type": "image/jpeg", "data": img_b64}})
+
+                try:
+                    response = requests.post(URL, json={"contents": [{"parts": payload_parts}]}, timeout=30)
+                    res_json = response.json()
+                    ans = res_json['candidates'][0]['content']['parts'][0]['text'] if 'candidates' in res_json else "API yanıt veremedi."
+                except:
+                    ans = "Bağlantı sırasında bir hata oluştu."
+
+            st.markdown(ans)
+            current_messages.append({"role": "assistant", "content": ans})
+            st.rerun()
