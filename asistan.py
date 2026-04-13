@@ -11,9 +11,10 @@ except Exception:
     st.error("secrets.toml dosyası veya içindeki API_KEY bulunamadı!")
     st.stop()
 
-# Model ismini API'nin en güncel kabul ettiği formata çektik
-MODEL_ADI = "models/gemini-1.5-flash-latest" 
-URL = f"https://generativelanguage.googleapis.com/v1beta/{MODEL_ADI}:generateContent?key={API_KEY}"
+# Model ismini ve API versiyonunu en stabil hale getirdik
+MODEL_ADI = "gemini-1.5-flash" 
+# URL yapısını v1beta yerine v1 olarak güncelleyerek uyumluluğu artırdık
+URL = f"https://generativelanguage.googleapis.com/v1/models/{MODEL_ADI}:generateContent?key={API_KEY}"
 
 st.set_page_config(
     page_title="TCDD Teknik", 
@@ -154,17 +155,14 @@ if prompt or should_analyze:
                     payload_parts.append({"inline_data": {"mime_type": "image/jpeg", "data": img_b64}})
 
                 try:
+                    # Payload formatını en standart yapıya getirdik
                     response = requests.post(URL, json={"contents": [{"parts": payload_parts}]}, timeout=30)
                     res_json = response.json()
                     
                     if 'candidates' in res_json:
                         ans = res_json['candidates'][0]['content']['parts'][0]['text']
                     else:
-                        error_msg = res_json.get('error', {}).get('message', 'Bilinmeyen API Hatası')
-                        ans = f"API Hatası: {error_msg}."
+                        error_msg = res_json.get('error', {}).get('message', 'Bilinmeyen Hata')
+                        ans = f"API Hatası: {error_msg}. Lütfen ayarları kontrol edin."
                 except Exception as e:
-                    ans = f"Bağlantı Hatası: {str(e)}"
-
-            st.markdown(ans)
-            current_messages.append({"role": "assistant", "content": ans})
-            st.rerun()
+                    ans = f"Bağlantı Hatası: {
