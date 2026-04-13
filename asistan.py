@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import base64
 import os
+import time
 
 # --- 1. AYARLAR ---
 try:
@@ -10,11 +11,10 @@ except Exception:
     st.error("secrets.toml dosyası veya içindeki API_KEY bulunamadı!")
     st.stop()
 
-# 1.5 DEĞİL, EN GÜNCEL STANDART: Gemini 2.0 Flash
-# Bu model, 3 serisinin API tarafındaki en stabil ve hızlı karşılığıdır.
-MODEL_ADI = "models/gemini-2.0-flash" 
+MODEL_ADI = "models/gemini-2.5-flash-lite" 
 URL = f"https://generativelanguage.googleapis.com/v1beta/{MODEL_ADI}:generateContent?key={API_KEY}"
 
+# LOGO BURADA TANIMLANDI:
 st.set_page_config(
     page_title="TCDD Teknik", 
     page_icon="Tcdd_Teknik_Logo.png", 
@@ -31,6 +31,7 @@ st.markdown("""
     <style>
     .tcdd-title { color: #d32f2f; font-size: 35px; font-weight: 800; text-align: center; margin-bottom: 20px; }
     [data-testid="stSidebar"] { background-color: #ffffff; border-right: 1px solid #eee; }
+    
     div.stButton > button {
         background: none !important;
         border: none !important;
@@ -41,7 +42,9 @@ st.markdown("""
         font-weight: 500 !important;
         box-shadow: none !important;
     }
-    div.stButton > button:hover { color: #d32f2f !important; }
+    div.stButton > button:hover {
+        color: #d32f2f !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -59,7 +62,8 @@ def load_docs():
 
 # --- 4. SOL PANEL ---
 with st.sidebar:
-    st.markdown("<h2 style='text-align: center; color: #d32f2f;'>🚆 TCDD TEKNİK</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; color: #d32f2f; font-size: 24px;'>🚆 TCDD TEKNİK Aİ</h2>", unsafe_allow_html=True)
+    
     if st.button("Yeni Sohbet +", use_container_width=True):
         new_id = f"Sohbet {len(st.session_state.all_chats) + 1}"
         st.session_state.all_chats[new_id] = []
@@ -67,76 +71,87 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
+    st.markdown("📂 **Geçmiş Sohbetler**")
+    
     for chat_id in list(st.session_state.all_chats.keys()):
-        col1, col2 = st.columns([0.8, 0.2])
+        col1, col2, col3 = st.columns([0.7, 0.15, 0.15])
         with col1:
-            if st.button(f"💬 {chat_id[:15]}", key=f"btn_{chat_id}"):
+            if st.button(f"💬 {chat_id[:12]}", key=f"v_{chat_id}"):
                 st.session_state.current_chat_id = chat_id
                 st.rerun()
         with col2:
-            if st.button("🗑️", key=f"del_{chat_id}"):
+            if st.button("✏️", key=f"ed_{chat_id}"):
+                st.session_state.edit_target = chat_id
+        with col3:
+            if st.button("🗑️", key=f"dl_{chat_id}"):
                 if len(st.session_state.all_chats) > 1:
                     del st.session_state.all_chats[chat_id]
                     st.session_state.current_chat_id = list(st.session_state.all_chats.keys())[0]
                     st.rerun()
 
+    if "edit_target" in st.session_state:
+        new_name = st.text_input("Yeni başlık:", value=st.session_state.edit_target)
+        if st.button("Güncelle"):
+            st.session_state.all_chats[new_name] = st.session_state.all_chats.pop(st.session_state.edit_target)
+            st.session_state.current_chat_id = new_name
+            del st.session_state.edit_target
+            st.rerun()
+
     st.markdown("---")
-    img_file = st.file_uploader("Teknik Görsel Analiz", type=["jpg", "png", "jpeg"])
+    img_file = st.file_uploader("Görsel Analiz", type=["jpg", "png", "jpeg"], label_visibility="collapsed")
 
 # --- 5. ANA EKRAN ---
 st.markdown(f"<div class='tcdd-title'>{st.session_state.current_chat_id}</div>", unsafe_allow_html=True)
 
-messages = st.session_state.all_chats[st.session_state.current_chat_id]
-for msg in messages:
-    with st.chat_message(msg["role"]): st.markdown(msg["content"])
+current_messages = st.session_state.all_chats.get(st.session_state.current_chat_id, [])
+for msg in current_messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
-# --- 6. İŞLEME ---
-prompt = st.chat_input("Teknik sorunuzu yazın...")
-
-should_analyze = False
-if img_file:
-    if "last_processed_img" not in st.session_state or st.session_state.last_processed_img != img_file.name:
-        should_analyze = True
-        st.session_state.last_processed_img = img_file.name
-
-if prompt or should_analyze:
-    if not messages:
-        new_title = (prompt[:20] if prompt else "Görsel Analiz") + "..."
+# --- 6. SORU VE ANALİZ ---
+if prompt := st.chat_input("Mesajınızı yazın..."):
+    
+    # Otomatik Başlıklandırma
+    if not current_messages and (st.session_state.current_chat_id.startswith("Sohbet") or st.session_state.current_chat_id == "Yeni Sohbet"):
+        new_title = prompt[:20] + "..." if len(prompt) > 20 else prompt
         st.session_state.all_chats[new_title] = st.session_state.all_chats.pop(st.session_state.current_chat_id)
         st.session_state.current_chat_id = new_title
-        messages = st.session_state.all_chats[new_title]
+        current_messages = st.session_state.all_chats[new_title]
 
-    user_text = prompt if prompt else "Yüklenen görseli teknik olarak analiz et."
-    messages.append({"role": "user", "content": user_text})
-    with st.chat_message("user"): st.markdown(user_text)
+    current_messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("Analiz Yapılıyor..."):
+        with st.spinner("İşleniyor..."):
             
-            clean_p = user_text.lower().replace(" ", "")
-            if "kimyaptı" in clean_p or "kimtasarladı" in clean_p:
-                ans = "Beni **Onur Ladik ve Ekibi** tasarladı ve TCDD teknik verilerini analiz etmem için geliştirdi."
+            clean_p = prompt.lower().replace(" ", "")
+            kimlik_kelimeleri = ["kimyaptı", "kimtasarladı", "senikim", "yapımcın", "kimingeliştirdi" "kim tarafından yapıldın",]
+            selam_kelimeleri = ["nasılsın", "merhaba", "selam", "naber"]
+
+            if any(k in clean_p for k in kimlik_kelimeleri):
+                ans = "Beni **Onur Ladik ve Ekibi** tasarladı ve TCDD teknik sistemlerini analiz etmem için geliştirdi."
+            elif any(s in clean_p for s in selam_kelimeleri):
+                ans = "İyiyim, teşekkür ederim! Size TCDD teknik konularında nasıl yardımcı olabilirim?"
             else:
-                sistem_talimati = "Sen TCDD Teknik uzmanısın. Görselleri ve dökümanları profesyonelce analiz et."
-                payload_parts = [{"text": sistem_talimati}, {"text": f"Soru: {user_text}"}]
+                sistem_talimati = "Sen TCDD Teknik uzmanısın. Belgeleri analiz et ve teknik yanıtlar ver."
+                payload_parts = [{"text": sistem_talimati}, {"text": f"Soru: {prompt}"}]
                 
-                for d in load_docs(): payload_parts.append({"inline_data": d})
+                pdf_docs = load_docs()
+                for d in pdf_docs:
+                    payload_parts.append({"inline_data": d})
+                
                 if img_file:
                     img_b64 = base64.b64encode(img_file.getvalue()).decode()
                     payload_parts.append({"inline_data": {"mime_type": "image/jpeg", "data": img_b64}})
 
                 try:
-                    res = requests.post(URL, json={"contents": [{"parts": payload_parts}]}, timeout=30)
-                    res_json = res.json()
-                    
-                    if 'candidates' in res_json:
-                        ans = res_json['candidates'][0]['content']['parts'][0]['text']
-                    else:
-                        error_msg = res_json.get('error', {}).get('message', 'API Yanıtı Boş')
-                        ans = f"Sistem Hatası: {error_msg}"
-                except Exception as e:
-                    ans = f"Bağlantı Hatası: {str(e)}"
+                    response = requests.post(URL, json={"contents": [{"parts": payload_parts}]}, timeout=30)
+                    res_json = response.json()
+                    ans = res_json['candidates'][0]['content']['parts'][0]['text'] if 'candidates' in res_json else "API yanıt veremedi."
+                except:
+                    ans = "Teknik bir hata oluştu."
 
             st.markdown(ans)
-            messages.append({"role": "assistant", "content": ans})
+            current_messages.append({"role": "assistant", "content": ans})
             st.rerun()
