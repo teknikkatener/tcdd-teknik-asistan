@@ -4,22 +4,28 @@ import base64
 import os
 import uuid
 
-# --- 1. AYARLAR (MODEL ADRESI DÜZELTİLDİ) ---
+# --- 1. AYARLAR (MODEL ADRESI VE GÜNCELLEME) ---
 API_KEY = st.secrets["GEMINI_API_KEY"]
-# 404 Hatasını engellemek için model ismi güncellendi
-MODEL_ADI = "gemini-2.0-flash-lite-preview" 
+# 404 hatasını çözmek için en kararlı önizleme ismi
+MODEL_ADI = "gemini-2.0-flash-exp" 
 URL = f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL_ADI}:generateContent?key={API_KEY}"
 
 st.set_page_config(page_title="TCDD Teknik", page_icon="🚆", layout="wide")
 
-# --- 2. KREATİF TASARIM (SİZİN KODUNUZ) ---
+# --- 2. KREATİF TASARIM (KUTUSUZ & SADECE YAZI) ---
 st.markdown("""
     <style>
-    [data-testid="stChatMessageContent"] { background-color: transparent !important; border: none !important; padding-left: 0 !important; }
-    .stChatMessage { border-bottom: 1px solid #f8f8f8 !important; padding: 10px 0px !important; }
+    /* Chat kutularını ve arka planları tamamen kaldır */
+    [data-testid="stChatMessageContent"] { background-color: transparent !important; border: none !important; padding: 0 !important; }
+    .stChatMessage { border: none !important; background-color: transparent !important; padding: 10px 0px !important; border-bottom: 1px solid #f0f0f0 !important; }
+    
+    /* Yan Menü (Sidebar) Temizliği */
     [data-testid="stSidebar"] { background-color: #ffffff; border-right: 1px solid #eee; }
+    
+    /* Başlık */
     .tcdd-header { color: #d32f2f; text-align: center; font-weight: 800; font-size: 32px; margin-bottom: 20px; }
     
+    /* Butonları sadece yazı ve simge yap */
     div.stButton > button {
         background-color: transparent !important;
         border: none !important;
@@ -27,8 +33,22 @@ st.markdown("""
         padding: 5px 0px !important;
         text-align: left !important;
         font-weight: 600 !important;
+        box-shadow: none !important;
     }
     div.stButton > button:hover { color: #b71c1c !important; text-decoration: underline !important; }
+
+    /* Görsel Yükleyiciyi "+" Yazısına Dönüştür */
+    .stFileUploader section { border: none !important; background: transparent !important; padding: 0 !important; }
+    .stFileUploader label { display: none !important; }
+    .stFileUploader div[role="button"] { 
+        border: none !important; 
+        background: transparent !important; 
+        color: #d32f2f !important; 
+        font-weight: bold !important;
+        box-shadow: none !important;
+    }
+    .stFileUploader div[role="button"]::after { content: " ➕ Görsel Analiz Ekle"; font-size: 14px; }
+    .stFileUploader div[role="button"] svg { display: none !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -45,7 +65,7 @@ def teknik_motor(prompt, pdf_docs, img_file=None):
     system_instr = """Sen TCDD Teknik Uzmanısın. 
     ÖNEMLİ KURAL: Eğer birisi 'Seni kim yaptı?', 'Yapımcın kim?' gibi sorular sorursa; 
     GURURLA ve KESİN BİR DİLLE 'Beni Semi Özcan tasarlayıp geliştirdi' cevabını ver. 
-    PDF belgeleri ve internet önceliğindir."""
+    PDF belgeleri ve Google Search önceliğindir."""
 
     payload_parts = [{"text": prompt}]
     for doc in pdf_docs: payload_parts.append(doc)
@@ -66,7 +86,7 @@ def teknik_motor(prompt, pdf_docs, img_file=None):
         res_json = response.json()
         return res_json['candidates'][0]['content']['parts'][0]['text']
     except Exception as e:
-        return f"⚠️ Yanıt alınamadı. Hata: {str(e)}"
+        return f"⚠️ Bağlantı hatası: {str(e)}"
 
 @st.cache_data
 def belgeleri_getir():
@@ -89,7 +109,6 @@ with st.sidebar:
         st.rerun()
     
     st.markdown("---")
-    st.write("📂 **Geçmiş Sohbetler**")
     for cid in list(st.session_state.chats.keys()):
         cols = st.columns([0.8, 0.2])
         with cols[0]:
@@ -114,7 +133,7 @@ for m in st.session_state.chats[active_id]["messages"]:
         st.markdown(m["content"])
 
 # --- 7. ALT BAR ---
-img_file = st.file_uploader("➕ Görsel Analiz Ekle", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+img_file = st.file_uploader("", type=["jpg", "jpeg", "png"], key="img_up")
 
 if prompt := st.chat_input("Teknik sorunuzu yazın..."):
     if st.session_state.chats[active_id]["title"] == "Yeni Arıza Kaydı":
