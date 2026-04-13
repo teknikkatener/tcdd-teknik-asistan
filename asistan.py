@@ -14,7 +14,7 @@ except Exception:
 MODEL_ADI = "models/gemini-2.5-flash-lite" 
 URL = f"https://generativelanguage.googleapis.com/v1beta/{MODEL_ADI}:generateContent?key={API_KEY}"
 
-st.set_page_config(page_title="TEKNİK TCDD", page_icon="🚆", layout="wide")
+st.set_page_config(page_title="TCDD Teknik", page_icon="🚆", layout="wide")
 
 # --- 2. TASARIM VE SOHBET YÖNETİMİ ---
 if "all_chats" not in st.session_state:
@@ -57,7 +57,8 @@ def load_docs():
 
 # --- 4. SOL PANEL (YENİ SOHBET / DÜZENLE / SİL) ---
 with st.sidebar:
-    st.markdown("<h2 style='text-align: center; color: #d32f2f;'>🚆 TCDD</h2>", unsafe_allow_html=True)
+    # İstediğiniz yeni başlık buraya eklendi
+    st.markdown("<h2 style='text-align: center; color: #d32f2f; font-size: 24px;'>🚆 TCDD TEKNİK Aİ</h2>", unsafe_allow_html=True)
     
     if st.button("Yeni Sohbet +", use_container_width=True):
         new_id = f"Sohbet {len(st.session_state.all_chats) + 1}"
@@ -75,18 +76,15 @@ with st.sidebar:
                 st.session_state.current_chat_id = chat_id
                 st.rerun()
         with col2:
-            # Düzenleme (Kalem) Butonu
             if st.button("✏️", key=f"ed_{chat_id}"):
                 st.session_state.edit_target = chat_id
         with col3:
-            # Silme Butonu
             if st.button("🗑️", key=f"dl_{chat_id}"):
                 if len(st.session_state.all_chats) > 1:
                     del st.session_state.all_chats[chat_id]
                     st.session_state.current_chat_id = list(st.session_state.all_chats.keys())[0]
                     st.rerun()
 
-    # Eğer düzenleme butonuna basıldıysa küçük bir giriş alanı aç
     if "edit_target" in st.session_state:
         new_name = st.text_input("Yeni başlık yazın:", value=st.session_state.edit_target)
         if st.button("Başlığı Güncelle"):
@@ -109,7 +107,7 @@ for msg in current_messages:
 # --- 6. SORU VE ANALİZ ---
 if prompt := st.chat_input("Mesajınızı yazın..."):
     
-    # Otomatik Başlıklandırma (Eğer başlık hala varsayılansa)
+    # Otomatik Başlıklandırma
     if not current_messages and (st.session_state.current_chat_id.startswith("Sohbet") or st.session_state.current_chat_id == "Yeni Sohbet"):
         new_title = prompt[:20] + "..." if len(prompt) > 20 else prompt
         st.session_state.all_chats[new_title] = st.session_state.all_chats.pop(st.session_state.current_chat_id)
@@ -123,32 +121,4 @@ if prompt := st.chat_input("Mesajınızı yazın..."):
     with st.chat_message("assistant"):
         with st.spinner("Düşünüyor..."):
             
-            low_p = prompt.lower().replace(" ", "")
-            kimlik_tetik = ["kimyaptı", "kimtasarladı", "senikim", "yapımcın", "kimingeliştirdi"]
-            
-            if any(t in low_p for t in kimlik_tetik):
-                ans = "Beni **Semi Özcan** tasarladı ve TCDD teknik verilerini analiz etmem için geliştirdi."
-            elif any(s in low_p for s in ["nasılsın", "merhaba", "selam"]):
-                ans = "İyiyim, teşekkür ederim! Size TCDD teknik konularında nasıl yardımcı olabilirim?"
-            else:
-                sistem_talimati = "Sen TCDD Teknik uzmanısın. Kısa ve teknik cevaplar ver."
-                payload_parts = [{"text": sistem_talimati}, {"text": f"Soru: {prompt}"}]
-                
-                pdf_docs = load_docs()
-                for d in pdf_docs:
-                    payload_parts.append({"inline_data": d})
-                
-                if img_file:
-                    img_b64 = base64.b64encode(img_file.getvalue()).decode()
-                    payload_parts.append({"inline_data": {"mime_type": "image/jpeg", "data": img_b64}})
-
-                try:
-                    response = requests.post(URL, json={"contents": [{"parts": payload_parts}]}, timeout=30)
-                    res_json = response.json()
-                    ans = res_json['candidates'][0]['content']['parts'][0]['text'] if 'candidates' in res_json else "Cevap alınamadı."
-                except:
-                    ans = "Teknik bir hata oluştu."
-
-            st.markdown(ans)
-            current_messages.append({"role": "assistant", "content": ans})
-            st.rerun()
+            low
